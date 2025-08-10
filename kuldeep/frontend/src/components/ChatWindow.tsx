@@ -8,11 +8,35 @@ import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
 import property3 from "@/assets/property-3.jpg";
 
+interface ChatProperty {
+  id: string;
+  title: string;
+  price: string;
+  location: string;
+  bedrooms: number;
+  bathrooms: number;
+  area: string;
+  image: string;
+  features: string[];
+  description?: string;
+  hasVRTour?: boolean;
+  vrTourData?: {
+    roomPhotoId?: string;
+    bathroomPhotoId?: string;
+    drawingRoomPhotoId?: string;
+    kitchenPhotoId?: string;
+  };
+  roomPhotoId?: string;
+  bathroomPhotoId?: string;
+  drawingRoomPhotoId?: string;
+  kitchenPhotoId?: string;
+}
+
 interface Message {
   id: string;
   type: 'user' | 'bot';
   content: string;
-  properties?: any[];
+  properties?: ChatProperty[];
   timestamp: Date;
 }
 
@@ -75,19 +99,37 @@ const ChatWindow = () => {
     
     setMessages(prev => [...prev, userMessage]);
 
-    // Simulate API call
-    const response=axios.get("http://localhost:5090/askIt",{
+    // Make API call to backend
+    axios.get("http://localhost:5090/askIt", {
       params: { question: inputValue }
     }).then(res => {
       console.log("Response from backend:", res.data);
-      // Assuming the response contains the bot's reply
+      
+      // Debug: Log properties if they exist
+      if (res.data.properties && res.data.properties.length > 0) {
+        console.log("🏠 Properties received:", res.data.properties.length);
+        res.data.properties.forEach((prop, index) => {
+          console.log(`🏠 Property ${index + 1}:`, {
+            id: prop.id,
+            title: prop.title,
+            hasVRTour: prop.hasVRTour,
+            roomPhotoId: prop.roomPhotoId,
+            bathroomPhotoId: prop.bathroomPhotoId,
+            drawingRoomPhotoId: prop.drawingRoomPhotoId,
+            kitchenPhotoId: prop.kitchenPhotoId
+          });
+        });
+      }
+      
+      // Create bot message with structured response
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
         content: res.data.answer,
-        // properties: sampleProperties, // Include sample properties in the response
+        properties: res.data.properties || [], // Include properties if returned
         timestamp: new Date()
       };
+      
       setMessages(prev => [...prev, botMessage]);
     }).catch(err => {
       console.error("Error fetching response:", err);
@@ -98,19 +140,7 @@ const ChatWindow = () => {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-    })
-
-    // Simulate bot response
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: "I found some great properties matching your criteria! Here are my top recommendations:",
-        // properties: sampleProperties,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
-    }, 1000);
+    });
     
     setInputValue("");
   };

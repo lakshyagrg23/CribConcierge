@@ -29,7 +29,10 @@ export const useTourProperties = (): UseTourPropertiesReturn => {
             // Transform database properties to TourProperty format
             const tourProperties: Record<string, TourProperty> = {};
             
+            console.log('🔄 Processing properties for VR tours:', data.properties.length);
+            
             data.properties.forEach((prop: any) => {
+              console.log('📝 Processing property:', prop.id, prop.title);
               tourProperties[prop.id] = {
                 id: prop.id,
                 propertyName: prop.title,
@@ -43,6 +46,7 @@ export const useTourProperties = (): UseTourPropertiesReturn => {
 
             setProperties(tourProperties);
             console.log(`✅ Loaded ${Object.keys(tourProperties).length} properties for VR tours`);
+            console.log('🗂️ Property IDs available:', Object.keys(tourProperties));
           } else {
             throw new Error('Invalid response format');
           }
@@ -83,7 +87,11 @@ export const useTourProperties = (): UseTourPropertiesReturn => {
   }, []);
 
   const getProperty = (id: string): TourProperty | null => {
-    return properties[id] || null;
+    console.log('🔍 getProperty called with ID:', id);
+    console.log('📚 Available property IDs:', Object.keys(properties));
+    const result = properties[id] || null;
+    console.log('📄 getProperty result:', result);
+    return result;
   };
 
   const updateProperty = (id: string, property: TourProperty) => {

@@ -27,10 +27,43 @@ const VirtualTourPage: React.FC = () => {
       }
 
       try {
-        const foundProperty = getProperty(propertyId);
+        console.log('🔍 Looking for property with ID:', propertyId);
+        console.log('📊 Available properties:', Object.keys(getProperty));
+        
+        let foundProperty = getProperty(propertyId);
+        console.log('🎯 Found property in cache:', foundProperty);
+        
         if (!foundProperty) {
+          console.log('🔄 Property not in cache, trying direct API fetch...');
+          // Try to fetch directly from the database API
+          try {
+            const response = await fetch(`/api/getProperty/${propertyId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.property) {
+                // Transform the database property to TourProperty format
+                foundProperty = {
+                  id: data.property.id,
+                  propertyName: data.property.propertyName,
+                  propertyAddress: data.property.propertyAddress,
+                  roomPhotoId: data.property.roomPhotoId,
+                  bathroomPhotoId: data.property.bathroomPhotoId,
+                  drawingRoomPhotoId: data.property.drawingRoomPhotoId,
+                  kitchenPhotoId: data.property.kitchenPhotoId
+                };
+                console.log('✅ Successfully fetched property from API:', foundProperty);
+              }
+            }
+          } catch (apiError) {
+            console.error('❌ API fetch failed:', apiError);
+          }
+        }
+        
+        if (!foundProperty) {
+          console.error('❌ Property not found in cache or API');
           setError('Property not found');
         } else {
+          console.log('✅ Property loaded for VR tour:', foundProperty.propertyName);
           setProperty(foundProperty);
         }
       } catch (err) {

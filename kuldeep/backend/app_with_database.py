@@ -375,41 +375,99 @@ def intelligent_qa():
         return jsonify({"answer": "Please provide a question."}), 400
     
     try:
+        # Get all properties for potential card display
+        all_properties = db.get_all_properties()
+        
         # If RAG chain is available, use it for intelligent responses
         if global_chain and global_vector_store:
             print(f"🤖 Processing question with RAG: {question}")
             
             # Use RAG for intelligent context-aware responses
             result = global_chain({
-                "question": f"Answer in English: {question} (If the query is about images or photos, mention that properties have uploaded photos which can be viewed through VR tours. For property details, use the database information provided.)"
+                "question": f"Answer in English: {question} (If showing properties, provide a brief summary and mention that detailed property cards will be displayed below. For VR tours, mention that 3D tour buttons are available.)"
             }, return_only_outputs=True)
             
             # Format the response
             answer = result.get('answer', '')
-            
-            # Apply text formatting similar to original
             answer = re.sub(r"\*\*(.*?)\*\*", r"**\1**", answer)
             answer = answer.replace("\\n", "\n")
             answer = answer.replace("\\*", "*")
             
-            print(f"🤖 RAG Answer: {answer}")
+            # Determine if we should include property cards based on the question/answer
+            properties_to_show = []
+            show_properties = False
             
-            return jsonify({
+            # Check if the question or answer indicates property listings should be shown
+            property_keywords = ['property', 'properties', 'listing', 'listings', 'show', 'recommend', 'available', 'vr', 'tour', 'photos']
+            question_lower = question.lower()
+            answer_lower = answer.lower()
+            
+            if any(keyword in question_lower for keyword in property_keywords) or any(keyword in answer_lower for keyword in property_keywords):
+                show_properties = True
+            
+            # If we should show properties, format them for the frontend
+            if show_properties and all_properties:
+                for prop in all_properties:
+                    # Format property for frontend PropertyCard component
+                    formatted_property = {
+                        "id": prop.get('_id', ''),
+                        "title": prop.get('propertyName', 'Unknown Property'),
+                        "price": f"₹{prop.get('propertyCostRange', 'Price not specified')}",
+                        "location": prop.get('propertyAddress', 'Location not specified'),
+                        "bedrooms": prop.get('bedrooms', 2),
+                        "bathrooms": prop.get('bathrooms', 1),
+                        "area": prop.get('area', 'Area not specified'),
+                        "features": prop.get('features', []),
+                        "description": prop.get('description', ''),
+                        # VR Tour data - include both individual props and nested object
+                        "hasVRTour": bool(prop.get('roomPhotoId') or prop.get('bathroomPhotoId') or prop.get('drawingRoomPhotoId') or prop.get('kitchenPhotoId')),
+                        "roomPhotoId": prop.get('roomPhotoId'),
+                        "bathroomPhotoId": prop.get('bathroomPhotoId'),
+                        "drawingRoomPhotoId": prop.get('drawingRoomPhotoId'),
+                        "kitchenPhotoId": prop.get('kitchenPhotoId'),
+                        "vrTourData": {
+                            "roomPhotoId": prop.get('roomPhotoId'),
+                            "bathroomPhotoId": prop.get('bathroomPhotoId'),
+                            "drawingRoomPhotoId": prop.get('drawingRoomPhotoId'),
+                            "kitchenPhotoId": prop.get('kitchenPhotoId')
+                        },
+                        # Use a placeholder image or the first available room image
+                        "image": f"/api/images/{prop.get('roomPhotoId')}" if prop.get('roomPhotoId') else "/placeholder-property.jpg"
+                    }
+                    properties_to_show.append(formatted_property)
+                
+                # Limit to 6 properties to avoid overwhelming the chat
+                properties_to_show = properties_to_show[:6]
+            
+            print(f"🤖 RAG Answer: {answer}")
+            print(f"📊 Properties to show: {len(properties_to_show)}")
+            
+            response_data = {
                 "answer": answer,
                 "source": "rag_enhanced",
-                "properties_in_knowledge_base": len(db.get_all_properties())
-            }), 200
+                "properties_in_knowledge_base": len(all_properties)
+            }
+            
+            # Add properties if we found relevant ones
+            if properties_to_show:
+                response_data["properties"] = properties_to_show
+                response_data["showPropertyCards"] = True
+            
+            return jsonify(response_data), 200
             
         else:
             # Fallback to database-only responses
             print(f"🤖 Processing question with database fallback: {question}")
             
-            properties = db.get_all_properties()
-            
-            if not properties:
+            if not all_properties:
                 answer = "No property listings found in the database. Please add properties first."
+                return jsonify({
+                    "answer": answer,
+                    "source": "database_fallback",
+                    "suggestion": "For more intelligent responses, please ensure the RAG system is properly initialized."
+                }), 200
             else:
-                latest_property = properties[-1]  # Get most recent property
+                latest_property = all_properties[-1]  # Get most recent property
                 
                 if "cost" in question.lower() or "price" in question.lower():
                     answer = f"The latest property '{latest_property['propertyName']}' is priced at ₹{latest_property['propertyCostRange']}."
@@ -424,9 +482,39 @@ def intelligent_qa():
                     ] if photo_id)
                     answer = f"The property '{latest_property['propertyName']}' has {photo_count} uploaded photos available for VR tour viewing."
                 elif "count" in question.lower() or "how many" in question.lower():
-                    answer = f"We currently have {len(properties)} properties in our database."
+                    answer = f"We currently have {len(all_properties)} properties in our database."
                 else:
                     answer = f"**{latest_property['propertyName']}**\n\nLocation: {latest_property['propertyAddress']}\nPrice: ₹{latest_property['propertyCostRange']}\n\n{latest_property.get('description', 'Contact us for more details!')}"
+                
+                # For property-related questions, also show property cards
+                if any(keyword in question.lower() for keyword in ['property', 'properties', 'show', 'list', 'available']):
+                    properties_to_show = []
+                    for prop in all_properties[:3]:  # Show top 3 properties
+                        formatted_property = {
+                            "id": prop.get('_id', ''),
+                            "title": prop.get('propertyName', 'Unknown Property'),
+                            "price": f"₹{prop.get('propertyCostRange', 'Price not specified')}",
+                            "location": prop.get('propertyAddress', 'Location not specified'),
+                            "bedrooms": prop.get('bedrooms', 2),
+                            "bathrooms": prop.get('bathrooms', 1),
+                            "area": prop.get('area', 'Area not specified'),
+                            "features": prop.get('features', []),
+                            "hasVRTour": bool(prop.get('roomPhotoId') or prop.get('bathroomPhotoId') or prop.get('drawingRoomPhotoId') or prop.get('kitchenPhotoId')),
+                            "roomPhotoId": prop.get('roomPhotoId'),
+                            "bathroomPhotoId": prop.get('bathroomPhotoId'),
+                            "drawingRoomPhotoId": prop.get('drawingRoomPhotoId'),
+                            "kitchenPhotoId": prop.get('kitchenPhotoId'),
+                            "image": f"/api/images/{prop.get('roomPhotoId')}" if prop.get('roomPhotoId') else "/placeholder-property.jpg"
+                        }
+                        properties_to_show.append(formatted_property)
+                    
+                    return jsonify({
+                        "answer": answer,
+                        "source": "database_fallback",
+                        "properties": properties_to_show,
+                        "showPropertyCards": True,
+                        "suggestion": "For more intelligent responses, please ensure the RAG system is properly initialized."
+                    }), 200
             
             print(f"🤖 Database Answer: {answer}")
             

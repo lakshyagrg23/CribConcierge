@@ -43,8 +43,20 @@ const PropertyCard = ({
   const hasVRTour = !!(roomPhotoId || bathroomPhotoId || drawingRoomPhotoId || kitchenPhotoId);
 
   const handleVRTour = () => {
+    console.log("🎮 VR Tour button clicked!");
+    console.log("📄 Property ID:", id);
+    console.log("🏠 Property Title:", title);
+    console.log("🖼️ Has VR Tour:", hasVRTour);
+    console.log("📸 Room Photo ID:", roomPhotoId);
+    console.log("🚿 Bathroom Photo ID:", bathroomPhotoId);
+    console.log("🛋️ Drawing Room Photo ID:", drawingRoomPhotoId);
+    console.log("🍳 Kitchen Photo ID:", kitchenPhotoId);
+    
     if (hasVRTour) {
+      console.log("🚀 Navigating to:", `/tour/${id}`);
       navigate(`/tour/${id}`);
+    } else {
+      console.log("❌ No VR tour available");
     }
   };
 
