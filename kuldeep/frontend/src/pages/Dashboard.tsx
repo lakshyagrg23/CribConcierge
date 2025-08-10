@@ -41,7 +41,7 @@ const Dashboard = () => {
       
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Main Content */}
-        <div className={`flex-1 transition-all duration-300 ${showChat ? 'mr-96' : ''}`}>
+        <div className={`flex-1 transition-all duration-300 ${showChat ? 'mr-[28rem] max-[1024px]:mr-[40vw]' : ''}`}>
           <div className="p-6">
             {/* Welcome Header */}
             <div className="mb-8">
@@ -185,7 +185,7 @@ const Dashboard = () => {
 
         {/* Chat Sidebar */}
         {showChat && (
-          <div className="fixed right-0 top-16 w-96 h-[calc(100vh-4rem)] bg-background border-l border-border shadow-elegant-lg">
+          <div className="fixed right-0 top-16 w-[28rem] max-w-[40vw] h-[calc(100vh-4rem)] bg-background border-l border-border shadow-elegant-lg">
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h2 className="font-semibold text-foreground">Property Assistant</h2>
               <Button 

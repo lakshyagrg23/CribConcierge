@@ -14,6 +14,7 @@ interface PropertyCardProps {
   area: string;
   image: string;
   features?: string[];
+  isCompact?: boolean; // New prop for compact chat display
   // Optional image IDs for VR tour
   roomPhotoId?: string;
   bathroomPhotoId?: string;
@@ -31,6 +32,7 @@ const PropertyCard = ({
   area, 
   image, 
   features = [],
+  isCompact = false, // Default to false for backward compatibility
   roomPhotoId,
   bathroomPhotoId,
   drawingRoomPhotoId,
@@ -60,6 +62,81 @@ const PropertyCard = ({
     }
   };
 
+  // Compact layout for chat messages
+  if (isCompact) {
+    return (
+      <div className="group relative overflow-hidden">
+        <div className="flex gap-4 p-4">
+          {/* Compact Image */}
+          <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
+            <img 
+              src={image} 
+              alt={title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-dark/30 to-transparent" />
+            {hasVRTour && (
+              <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-gradient-accent rounded-full shadow-luxury animate-pulse" />
+            )}
+            {features[0] && (
+              <Badge variant="secondary" className="absolute bottom-1.5 left-1.5 text-xs py-0.5 px-1.5 bg-gradient-primary text-primary-foreground border-0 shadow-luxury">
+                {features[0]}
+              </Badge>
+            )}
+          </div>
+          
+          {/* Compact Content */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between mb-2">
+                <h4 className="text-base font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors duration-300">{title}</h4>
+                <span className="text-base font-bold premium-gradient ml-3 flex-shrink-0">{price}</span>
+              </div>
+              
+              <div className="flex items-center text-muted-foreground mb-3">
+                <MapPin className="h-3.5 w-3.5 mr-1.5 text-primary flex-shrink-0" />
+                <span className="text-sm font-medium line-clamp-1">{location}</span>
+              </div>
+              
+              {/* Compact Stats */}
+              <div className="flex items-center gap-4 mb-3 text-sm">
+                <div className="flex items-center px-2 py-1 bg-surface/50 rounded-md border border-border/50">
+                  <Bed className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                  <span className="font-medium">{bedrooms} bed</span>
+                </div>
+                <div className="flex items-center px-2 py-1 bg-surface/50 rounded-md border border-border/50">
+                  <Bath className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                  <span className="font-medium">{bathrooms} bath</span>
+                </div>
+                <div className="flex items-center px-2 py-1 bg-surface/50 rounded-md border border-border/50">
+                  <Square className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                  <span className="font-medium">{area}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Compact Buttons */}
+            <div className="flex gap-2">
+              <Button variant="hero" className="flex-1 text-sm py-2 h-8" size="sm">
+                View Details
+              </Button>
+              <Button 
+                variant={hasVRTour ? "chat" : "outline"} 
+                size="sm" 
+                className="text-sm py-2 h-8 px-3 flex-shrink-0"
+                onClick={handleVRTour}
+                disabled={!hasVRTour}
+              >
+                🎮 3D Tour
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Full layout for regular property listings
   return (
     <div className="group relative luxury-card overflow-hidden">
       <div className="relative overflow-hidden rounded-t-lg">

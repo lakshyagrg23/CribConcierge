@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
-import { Send, MessageCircle, Home, DollarSign, MapPin } from "lucide-react";
+import { Send, MessageCircle, Home, DollarSign, MapPin, Trash2 } from "lucide-react";
 import PropertyCard from "./PropertyCard";
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
@@ -41,15 +41,92 @@ interface Message {
 }
 
 const ChatWindow = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
+  // Initialize messages from localStorage or with default welcome message
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const savedMessages = localStorage.getItem('chatHistory');
+      if (savedMessages) {
+        const parsed: Message[] = JSON.parse(savedMessages);
+        // Convert timestamp strings back to Date objects
+        const restoredMessages = parsed.map((msg) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        
+        // Check if we're loading from a previous session
+        const lastActivity = localStorage.getItem('chatLastActivity');
+        if (lastActivity && restoredMessages.length > 1) {
+          console.log('💾 Chat history restored with', restoredMessages.length, 'messages');
+        }
+        
+        return restoredMessages;
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+    
+    // Default welcome message
+    return [
+      {
+        id: '1',
+        type: 'bot',
+        content: "Hi! I'm your real estate assistant. I can help you find the perfect property. What are you looking for?",
+        timestamp: new Date()
+      }
+    ];
+  });
+  
+  const [inputValue, setInputValue] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages are added
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    try {
+      localStorage.setItem('chatHistory', JSON.stringify(messages));
+      // Also save the last activity timestamp
+      localStorage.setItem('chatLastActivity', new Date().toISOString());
+    } catch (error) {
+      console.error('Error saving chat history:', error);
+    }
+  }, [messages]);
+
+  // Check if chat history is recent (within 7 days)
+  const isChatHistoryRecent = () => {
+    try {
+      const lastActivity = localStorage.getItem('chatLastActivity');
+      if (lastActivity) {
+        const lastDate = new Date(lastActivity);
+        const now = new Date();
+        const daysDiff = (now.getTime() - lastDate.getTime()) / (1000 * 3600 * 24);
+        return daysDiff <= 7;
+      }
+    } catch (error) {
+      console.error('Error checking chat history age:', error);
+    }
+    return false;
+  };
+
+  // Clear chat history function
+  const clearChatHistory = () => {
+    const defaultMessage: Message = {
+      id: Date.now().toString(),
       type: 'bot',
       content: "Hi! I'm your real estate assistant. I can help you find the perfect property. What are you looking for?",
       timestamp: new Date()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState("");
+    };
+    setMessages([defaultMessage]);
+    localStorage.removeItem('chatHistory');
+    localStorage.removeItem('chatLastActivity');
+  };
 
   // const sampleProperties = [
   //   {
@@ -153,36 +230,64 @@ const ChatWindow = () => {
     <div className="flex flex-col h-full bg-gradient-surface relative">
       <div className="absolute inset-0 stone-texture opacity-30" />
       <div className="p-6 border-b border-border bg-gradient-to-r from-surface via-background to-surface relative shadow-elegant-md">
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <MessageCircle className="h-6 w-6 text-primary" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-accent rounded-full animate-pulse" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <MessageCircle className="h-6 w-6 text-primary" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-accent rounded-full animate-pulse" />
+            </div>
+            <h2 className="text-xl font-bold premium-gradient">Premium Property Assistant</h2>
           </div>
-          <h2 className="text-xl font-bold premium-gradient">Premium Property Assistant</h2>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-muted-foreground font-medium">
+              {messages.length > 1 ? `${messages.length - 1} messages` : 'Start conversation'}
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={clearChatHistory}
+              className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Clear chat history"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 relative">
         {messages.map((message) => (
           <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] p-5 rounded-2xl shadow-elegant-md transition-all duration-300 hover:shadow-elegant-lg ${
+            <div className={`${
+              message.properties && message.properties.length > 0 
+                ? 'w-full max-w-none' 
+                : message.type === 'user' 
+                  ? 'max-w-[75%]' 
+                  : 'max-w-[85%]'
+            } p-4 rounded-2xl shadow-elegant-md transition-all duration-300 hover:shadow-elegant-lg ${
               message.type === 'user' 
                 ? 'bg-gradient-primary text-primary-foreground shadow-brick' 
                 : 'luxury-card'
             }`}>
               <p className="text-sm leading-relaxed font-medium">{message.content}</p>
               {message.properties && (
-                <div className="mt-6 space-y-4">
-                  {message.properties.map((property) => (
-                    <div key={property.id} className="luxury-card p-4 transform hover:scale-[1.02] transition-all duration-300">
-                      <PropertyCard {...property} />
-                    </div>
-                  ))}
+                <div className="mt-4 space-y-2">
+                  <div className="text-xs text-muted-foreground font-medium mb-3">
+                    Found {message.properties.length} properties matching your criteria:
+                  </div>
+                  <div className="space-y-3">
+                    {message.properties.map((property) => (
+                      <div key={property.id} className="bg-gradient-to-br from-surface/50 to-background/50 backdrop-blur-sm rounded-xl border border-border/30 overflow-hidden hover:shadow-elegant-md transition-all duration-300">
+                        <PropertyCard {...property} isCompact={true} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
       
       <div className="p-6 border-t border-border bg-gradient-to-r from-surface via-background to-surface relative shadow-elegant-md">
