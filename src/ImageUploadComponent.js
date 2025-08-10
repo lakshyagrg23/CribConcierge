@@ -15,7 +15,7 @@ class ImageUploadComponent {
     this.mongoUri = options.mongoUri || "mongodb://localhost:27017/imageupload";
     this.dbName = options.dbName || "imageupload";
     this.bucketName = options.bucketName || "images";
-    this.maxFileSize = options.maxFileSize || 5 * 1024 * 1024; // 5MB default
+    this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024; // 50MB default
     this.allowedMimeTypes = ["image/jpeg", "image/jpg"];
 
     this.bucket = null;

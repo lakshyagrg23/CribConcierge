@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Bed, Bath, Square, Heart } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface PropertyCardProps {
   id: string;
@@ -13,6 +14,11 @@ interface PropertyCardProps {
   area: string;
   image: string;
   features?: string[];
+  // Optional image IDs for VR tour
+  roomPhotoId?: string;
+  bathroomPhotoId?: string;
+  drawingRoomPhotoId?: string;
+  kitchenPhotoId?: string;
 }
 
 const PropertyCard = ({ 
@@ -24,9 +30,23 @@ const PropertyCard = ({
   bathrooms, 
   area, 
   image, 
-  features = [] 
+  features = [],
+  roomPhotoId,
+  bathroomPhotoId,
+  drawingRoomPhotoId,
+  kitchenPhotoId
 }: PropertyCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
+  const navigate = useNavigate();
+
+  // Check if any panoramic images are available for VR tour
+  const hasVRTour = !!(roomPhotoId || bathroomPhotoId || drawingRoomPhotoId || kitchenPhotoId);
+
+  const handleVRTour = () => {
+    if (hasVRTour) {
+      navigate(`/tour/${id}`);
+    }
+  };
 
   return (
     <div className="group relative luxury-card overflow-hidden">
@@ -85,8 +105,14 @@ const PropertyCard = ({
           <Button variant="hero" className="flex-1 shadow-brick" size="sm">
             View Details
           </Button>
-          <Button variant="chat" size="sm" className="shadow-elegant-sm">
-            Contact
+          <Button 
+            variant={hasVRTour ? "chat" : "outline"} 
+            size="sm" 
+            className="shadow-elegant-sm"
+            onClick={handleVRTour}
+            disabled={!hasVRTour}
+          >
+            3D Tour
           </Button>
         </div>
       </div>

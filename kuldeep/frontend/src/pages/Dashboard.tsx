@@ -1,11 +1,12 @@
-import { useState, } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ChatWindow from "@/components/ChatWindow";
 import PropertyCard from "@/components/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Grid, List, Filter, Plus } from "lucide-react";
+import { Heart, Grid, List, Filter, Plus, RefreshCw, AlertCircle } from "lucide-react";
+import { useProperties } from "@/hooks/useProperties";
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
 import property3 from "@/assets/property-3.jpg";
@@ -13,32 +14,20 @@ import property3 from "@/assets/property-3.jpg";
 const Dashboard = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showChat, setShowChat] = useState(true);
-  const nav=useNavigate();
+  const nav = useNavigate();
+  const { properties, loading, error, refetch } = useProperties();
 
-  const savedProperties = [
-    {
-      id: "1",
-      title: "Modern Downtown Apartment",
-      price: "$450,000",
-      location: "Downtown District",
-      bedrooms: 2,
-      bathrooms: 2,
-      area: "850 sq ft",
-      image: property1,
-      features: ["Pet Friendly", "Parking"]
-    },
-    {
-      id: "2",
-      title: "Suburban Family Home",
-      price: "$320,000",
-      location: "Maple Heights",
-      bedrooms: 3,
-      bathrooms: 2,
-      area: "1,200 sq ft",
-      image: property2,
-      features: ["Garden", "Garage"]
-    }
-  ];
+  // Add fallback images for properties without images
+  const getPropertyImage = (index: number) => {
+    const images = [property1, property2, property3];
+    return images[index % images.length];
+  };
+
+  // Transform properties to include fallback images
+  const savedProperties = properties.map((property, index) => ({
+    ...property,
+    image: getPropertyImage(index)
+  }));
 
   const recentSearches = [
     "3-bedroom houses under $400k",
@@ -76,11 +65,20 @@ const Dashboard = () => {
               
               <div className="bg-surface p-6 rounded-2xl border border-border">
                 <h3 className="text-lg font-semibold text-foreground mb-2">Saved Properties</h3>
-                <p className="text-sm text-muted-foreground mb-4">{savedProperties.length} properties saved</p>
-                <Button variant="outline" size="sm">
-                  <Heart className="h-4 w-4 mr-1" />
-                  View Saved
-                </Button>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {loading ? "Loading..." : `${savedProperties.length} properties ${error ? "(fallback data)" : "from database"}`}
+                </p>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm">
+                    <Heart className="h-4 w-4 mr-1" />
+                    View Saved
+                  </Button>
+                  {!loading && (
+                    <Button variant="ghost" size="sm" onClick={refetch}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
               
               <div className="bg-surface p-6 rounded-2xl border border-border">
@@ -112,7 +110,17 @@ const Dashboard = () => {
             {/* Saved Properties Section */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-foreground">Saved Properties</h2>
+                <div className="flex items-center space-x-3">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    {loading ? "Loading Properties..." : "Saved Properties"}
+                  </h2>
+                  {error && (
+                    <div className="flex items-center text-amber-600">
+                      <AlertCircle className="h-4 w-4 mr-1" />
+                      <span className="text-sm">Using fallback data</span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center space-x-2">
                   <Button 
                     variant={viewMode === 'grid' ? 'default' : 'ghost'} 
@@ -132,14 +140,45 @@ const Dashboard = () => {
                     <Filter className="h-4 w-4 mr-1" />
                     Filter
                   </Button>
+                  {!loading && (
+                    <Button variant="ghost" size="sm" onClick={refetch} title="Refresh properties">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
-              <div className={`grid ${viewMode === 'grid' ? 'md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'} gap-6`}>
-                {savedProperties.map((property) => (
-                  <PropertyCard key={property.id} {...property} />
-                ))}
-              </div>
+              {loading ? (
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-surface p-6 rounded-2xl border border-border animate-pulse">
+                      <div className="bg-muted h-48 rounded-lg mb-4"></div>
+                      <div className="bg-muted h-4 rounded mb-2"></div>
+                      <div className="bg-muted h-3 rounded w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`grid ${viewMode === 'grid' ? 'md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+                  {savedProperties.map((property) => (
+                    <PropertyCard key={property.id} {...property} />
+                  ))}
+                  
+                  {savedProperties.length === 0 && (
+                    <div className="col-span-full text-center py-12">
+                      <div className="text-muted-foreground mb-4">
+                        <AlertCircle className="h-12 w-12 mx-auto mb-2" />
+                        <p>No properties found</p>
+                        <p className="text-sm">Add your first property to get started</p>
+                      </div>
+                      <Button variant="hero" onClick={() => nav("/addlisting")}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Property
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

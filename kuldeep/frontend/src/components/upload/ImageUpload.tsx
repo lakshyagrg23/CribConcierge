@@ -22,7 +22,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   onUploadSuccess,
   onUploadError,
   className,
-  maxFileSize = 5 * 1024 * 1024, // 5MB
+  maxFileSize = 50 * 1024 * 1024, // 50MB
   showPreview = true,
   disabled = false
 }) => {

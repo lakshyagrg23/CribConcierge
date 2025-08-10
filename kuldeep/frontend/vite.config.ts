@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       '/api/images': {
         target: 'http://localhost:3000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/images/, ''),
+        rewrite: (path) => path.replace(/^\/api\/images/, '/images'),
       },
       // Proxy other API requests to Flask backend
       '/api': {

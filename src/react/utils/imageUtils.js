@@ -8,7 +8,7 @@
  * @param {number} maxSize - Maximum file size in bytes
  * @returns {Object} Validation result
  */
-export const validateJpegFile = (file, maxSize = 5 * 1024 * 1024) => {
+export const validateJpegFile = (file, maxSize = 50 * 1024 * 1024) => {
   const errors = [];
 
   // Check if file exists
