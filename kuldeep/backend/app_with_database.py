@@ -1,11 +1,51 @@
 import os
 import json
+import re
 from datetime import datetime
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
+
+# RAG and LangChain imports
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.memory import ConversationBufferMemory
+from langchain_core.documents import Document
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.vectorstores import FAISS
+from langchain.chains import ConversationalRetrievalChain
+from langchain.embeddings import HuggingFaceEmbeddings
+from SYSTEM_PROMPT import PROMPT
+import nltk
+
+# Download required NLTK data
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+except:
+    pass
+
+# Load environment variables
+load_dotenv()
+
+# Set Google API key for Gemini
+os.environ["GOOGLE_API_KEY"] = os.environ.get("GEMINI_API_KEY", "")
+
+# Initialize RAG components globally
+text_splitter = CharacterTextSplitter(
+    separator='\n',
+    chunk_size=1000,
+    chunk_overlap=100
+)
+embedder = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+geminiLlm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.4, system_prompt=PROMPT)
+
+# Global RAG components
+global_vector_store = None
+global_chain = None
+global_memory = None
 
 # MongoDB Setup
 class PropertyDatabase:
@@ -56,6 +96,142 @@ class PropertyDatabase:
         """Delete a property"""
         result = self.properties.delete_one({"_id": ObjectId(property_id)})
         return result.deleted_count > 0
+    
+    def get_properties_as_documents(self):
+        """Convert MongoDB properties to LangChain Documents for RAG"""
+        properties = self.get_all_properties()
+        documents = []
+        
+        for prop in properties:
+            # Build comprehensive content for each property
+            content = f"""
+Property Name: {prop.get('propertyName', 'N/A')}
+Property Address: {prop.get('propertyAddress', 'N/A')}
+Property Cost: ₹{prop.get('propertyCostRange', 'N/A')}
+Bedrooms: {prop.get('bedrooms', 'N/A')}
+Bathrooms: {prop.get('bathrooms', 'N/A')}
+Area: {prop.get('area', 'N/A')}
+Description: {prop.get('description', 'N/A')}
+Features: {', '.join(prop.get('features', []))}
+Status: {prop.get('status', 'N/A')}
+
+Available Images for VR Tour:
+{f"Room Photo ID: {prop.get('roomPhotoId')}" if prop.get('roomPhotoId') else "Room Photo: Not available"}
+{f"Bathroom Photo ID: {prop.get('bathroomPhotoId')}" if prop.get('bathroomPhotoId') else "Bathroom Photo: Not available"}
+{f"Drawing Room Photo ID: {prop.get('drawingRoomPhotoId')}" if prop.get('drawingRoomPhotoId') else "Drawing Room Photo: Not available"}
+{f"Kitchen Photo ID: {prop.get('kitchenPhotoId')}" if prop.get('kitchenPhotoId') else "Kitchen Photo: Not available"}
+
+Property ID: {prop.get('_id')}
+Created: {prop.get('created_at', 'N/A')}
+Updated: {prop.get('updated_at', 'N/A')}
+            """.strip()
+            
+            # Create LangChain Document
+            doc = Document(
+                page_content=content,
+                metadata={
+                    "property_id": prop.get('_id'),
+                    "property_name": prop.get('propertyName', ''),
+                    "address": prop.get('propertyAddress', ''),
+                    "price": prop.get('propertyCostRange', ''),
+                    "type": "property_listing"
+                }
+            )
+            documents.append(doc)
+        
+        return documents
+    
+    def build_rag_knowledge_base(self):
+        """Build FAISS vector store from all properties in database"""
+        global global_vector_store, global_chain, global_memory
+        
+        try:
+            print("🔄 Building RAG knowledge base from database...")
+            
+            # Get all properties as documents
+            documents = self.get_properties_as_documents()
+            
+            if not documents:
+                print("⚠️ No properties found in database for RAG")
+                return False
+            
+            # Split documents into chunks
+            text_chunks = text_splitter.split_documents(documents)
+            print(f"📄 Created {len(text_chunks)} text chunks from {len(documents)} properties")
+            
+            # Create vector store
+            global_vector_store = FAISS.from_documents(text_chunks, embedder)
+            print("✅ FAISS vector store created successfully")
+            
+            # Initialize conversation memory
+            global_memory = ConversationBufferMemory(
+                memory_key="chat_history", 
+                return_messages=True
+            )
+            
+            # Create conversational retrieval chain
+            global_chain = ConversationalRetrievalChain.from_llm(
+                llm=geminiLlm,
+                memory=global_memory,
+                retriever=global_vector_store.as_retriever(
+                    search_kwargs={"k": 5}  # Retrieve top 5 most relevant chunks
+                )
+            )
+            print("✅ RAG conversational chain initialized")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error building RAG knowledge base: {str(e)}")
+            return False
+    
+    def update_rag_with_property(self, property_data):
+        """Add single property to existing RAG knowledge base"""
+        global global_vector_store
+        
+        try:
+            if not global_vector_store:
+                print("⚠️ No existing vector store, rebuilding entire knowledge base...")
+                return self.build_rag_knowledge_base()
+            
+            # Convert single property to document
+            content = f"""
+Property Name: {property_data.get('propertyName', 'N/A')}
+Property Address: {property_data.get('propertyAddress', 'N/A')}
+Property Cost: ₹{property_data.get('propertyCostRange', 'N/A')}
+Bedrooms: {property_data.get('bedrooms', 'N/A')}
+Bathrooms: {property_data.get('bathrooms', 'N/A')}
+Area: {property_data.get('area', 'N/A')}
+Description: {property_data.get('description', 'N/A')}
+Features: {', '.join(property_data.get('features', []))}
+
+Available Images for VR Tour:
+{f"Room Photo ID: {property_data.get('roomPhotoId')}" if property_data.get('roomPhotoId') else "Room Photo: Not available"}
+{f"Bathroom Photo ID: {property_data.get('bathroomPhotoId')}" if property_data.get('bathroomPhotoId') else "Bathroom Photo: Not available"}
+{f"Drawing Room Photo ID: {property_data.get('drawingRoomPhotoId')}" if property_data.get('drawingRoomPhotoId') else "Drawing Room Photo: Not available"}
+{f"Kitchen Photo ID: {property_data.get('kitchenPhotoId')}" if property_data.get('kitchenPhotoId') else "Kitchen Photo: Not available"}
+            """.strip()
+            
+            doc = Document(
+                page_content=content,
+                metadata={
+                    "property_name": property_data.get('propertyName', ''),
+                    "address": property_data.get('propertyAddress', ''),
+                    "price": property_data.get('propertyCostRange', ''),
+                    "type": "property_listing"
+                }
+            )
+            
+            # Split and add to existing vector store
+            chunks = text_splitter.split_documents([doc])
+            global_vector_store.add_documents(chunks)
+            
+            print(f"✅ Added property '{property_data.get('propertyName', 'Unknown')}' to RAG knowledge base")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error updating RAG with new property: {str(e)}")
+            return False
 
 # Initialize Flask app and database
 app = Flask(__name__)
@@ -64,7 +240,7 @@ db = PropertyDatabase()
 
 @app.route("/addListing", methods=['POST'])
 def add_listing():
-    """Add a property listing with image IDs to MongoDB"""
+    """Add a property listing with image IDs to MongoDB and update RAG knowledge base"""
     try:
         data = request.get_json()
         
@@ -89,13 +265,18 @@ def add_listing():
         property_id = db.add_property(property_data)
         property_data['propertyId'] = property_id
         
+        # Update RAG knowledge base with new property
+        rag_updated = db.update_rag_with_property(property_data)
+        
         print(f"✅ Added property to MongoDB: {property_data['propertyName']}")
         print(f"📄 Property ID: {property_id}")
+        print(f"🧠 RAG updated: {'✅' if rag_updated else '❌'}")
         
         return jsonify({
             "msg": "Success", 
             "propertyId": property_id,
             "data": property_data,
+            "ragUpdated": rag_updated,
             "imageIds": {
                 "room": property_data['roomPhotoId'],
                 "bathroom": property_data['bathroomPhotoId'],
@@ -184,46 +365,83 @@ def get_property(property_id):
         return jsonify({"error": str(e)}), 500
 
 @app.route("/askIt", methods=["GET"])
-def ask_question():
-    """Simple Q&A about properties from database"""
+def intelligent_qa():
+    """Enhanced Q&A using RAG + Database queries for intelligent property assistance"""
+    global global_chain, global_vector_store
+    
     question = request.args.get("question", "")
     
     if not question:
         return jsonify({"answer": "Please provide a question."}), 400
     
     try:
-        properties = db.get_all_properties()
-        
-        if not properties:
-            answer = "No property listings found in the database. Please add properties first."
-        else:
-            latest_property = properties[-1]  # Get most recent property
+        # If RAG chain is available, use it for intelligent responses
+        if global_chain and global_vector_store:
+            print(f"🤖 Processing question with RAG: {question}")
             
-            if "cost" in question.lower() or "price" in question.lower():
-                answer = f"The latest property '{latest_property['propertyName']}' is priced at ₹{latest_property['propertyCostRange']}."
-            elif "address" in question.lower() or "location" in question.lower():
-                answer = f"The property is located at {latest_property['propertyAddress']}."
-            elif "photo" in question.lower() or "image" in question.lower():
-                photo_count = sum(1 for photo_id in [
-                    latest_property.get('roomPhotoId'),
-                    latest_property.get('bathroomPhotoId'), 
-                    latest_property.get('drawingRoomPhotoId'),
-                    latest_property.get('kitchenPhotoId')
-                ] if photo_id)
-                answer = f"The property '{latest_property['propertyName']}' has {photo_count} uploaded photos available for VR tour viewing."
-            elif "count" in question.lower() or "how many" in question.lower():
-                answer = f"We currently have {len(properties)} properties in our database."
+            # Use RAG for intelligent context-aware responses
+            result = global_chain({
+                "question": f"Answer in English: {question} (If the query is about images or photos, mention that properties have uploaded photos which can be viewed through VR tours. For property details, use the database information provided.)"
+            }, return_only_outputs=True)
+            
+            # Format the response
+            answer = result.get('answer', '')
+            
+            # Apply text formatting similar to original
+            answer = re.sub(r"\*\*(.*?)\*\*", r"**\1**", answer)
+            answer = answer.replace("\\n", "\n")
+            answer = answer.replace("\\*", "*")
+            
+            print(f"🤖 RAG Answer: {answer}")
+            
+            return jsonify({
+                "answer": answer,
+                "source": "rag_enhanced",
+                "properties_in_knowledge_base": len(db.get_all_properties())
+            }), 200
+            
+        else:
+            # Fallback to database-only responses
+            print(f"🤖 Processing question with database fallback: {question}")
+            
+            properties = db.get_all_properties()
+            
+            if not properties:
+                answer = "No property listings found in the database. Please add properties first."
             else:
-                answer = f"**{latest_property['propertyName']}**\\n\\nLocation: {latest_property['propertyAddress']}\\nPrice: ₹{latest_property['propertyCostRange']}\\n\\n{latest_property.get('description', 'Contact us for more details!')}"
-        
-        print(f"🤖 Question: {question}")
-        print(f"🤖 Answer: {answer}")
-        
-        return jsonify({"answer": answer}), 200
+                latest_property = properties[-1]  # Get most recent property
+                
+                if "cost" in question.lower() or "price" in question.lower():
+                    answer = f"The latest property '{latest_property['propertyName']}' is priced at ₹{latest_property['propertyCostRange']}."
+                elif "address" in question.lower() or "location" in question.lower():
+                    answer = f"The property is located at {latest_property['propertyAddress']}."
+                elif "photo" in question.lower() or "image" in question.lower() or "vr" in question.lower() or "tour" in question.lower():
+                    photo_count = sum(1 for photo_id in [
+                        latest_property.get('roomPhotoId'),
+                        latest_property.get('bathroomPhotoId'), 
+                        latest_property.get('drawingRoomPhotoId'),
+                        latest_property.get('kitchenPhotoId')
+                    ] if photo_id)
+                    answer = f"The property '{latest_property['propertyName']}' has {photo_count} uploaded photos available for VR tour viewing."
+                elif "count" in question.lower() or "how many" in question.lower():
+                    answer = f"We currently have {len(properties)} properties in our database."
+                else:
+                    answer = f"**{latest_property['propertyName']}**\n\nLocation: {latest_property['propertyAddress']}\nPrice: ₹{latest_property['propertyCostRange']}\n\n{latest_property.get('description', 'Contact us for more details!')}"
+            
+            print(f"🤖 Database Answer: {answer}")
+            
+            return jsonify({
+                "answer": answer,
+                "source": "database_fallback",
+                "suggestion": "For more intelligent responses, please ensure the RAG system is properly initialized."
+            }), 200
         
     except Exception as e:
-        print(f"❌ Error in askIt: {str(e)}")
-        return jsonify({"answer": "Sorry, I encountered an error processing your question."}), 500
+        print(f"❌ Error in intelligent_qa: {str(e)}")
+        return jsonify({
+            "answer": "Sorry, I encountered an error processing your question. Please try again.",
+            "error": str(e)
+        }), 500
 
 @app.route("/getImage/<image_id>", methods=["GET"])
 def get_image(image_id):
@@ -238,9 +456,79 @@ def get_image(image_id):
     except Exception as e:
         return jsonify({"error": f"Failed to retrieve image: {str(e)}"}), 500
 
+@app.route("/rebuildRAG", methods=["POST"])
+def rebuild_rag():
+    """Manually rebuild the RAG knowledge base from current database"""
+    try:
+        success = db.build_rag_knowledge_base()
+        
+        if success:
+            property_count = len(db.get_all_properties())
+            return jsonify({
+                "success": True,
+                "message": f"RAG knowledge base rebuilt successfully with {property_count} properties",
+                "properties_count": property_count
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Failed to rebuild RAG knowledge base"
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Error rebuilding RAG: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route("/ragStatus", methods=["GET"])
+def rag_status():
+    """Get current status of RAG system"""
+    global global_chain, global_vector_store, global_memory
+    
+    try:
+        properties_count = len(db.get_all_properties())
+        
+        return jsonify({
+            "rag_initialized": global_chain is not None,
+            "vector_store_ready": global_vector_store is not None,
+            "memory_initialized": global_memory is not None,
+            "properties_in_database": properties_count,
+            "system_status": "Ready" if global_chain else "Not initialized"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "system_status": "Error"
+        }), 500
+
 if __name__ == "__main__":
-    print("🚀 Starting Property Database API Server...")
+    print("🚀 Starting Enhanced Property Database API Server with RAG...")
     print("📊 MongoDB Connection: mongodb://localhost:27017/imageupload")
     print("📁 Collection: properties")
+    print("🧠 RAG System: LangChain + FAISS + Google Gemini")
     print("🌐 Server: http://localhost:5090")
+    
+    # Initialize RAG knowledge base on startup
+    print("\n🔄 Initializing RAG system...")
+    try:
+        rag_success = db.build_rag_knowledge_base()
+        if rag_success:
+            print("✅ RAG system initialized successfully")
+        else:
+            print("⚠️ RAG system initialization failed - will use database fallback")
+    except Exception as e:
+        print(f"⚠️ RAG initialization error: {str(e)} - will use database fallback")
+    
+    print("\n📚 Available Endpoints:")
+    print("  POST /addListing - Add property (with RAG update)")
+    print("  GET  /getListings - Get all properties")
+    print("  GET  /getProperty/<id> - Get specific property")
+    print("  GET  /askIt?question=<query> - RAG-powered Q&A")
+    print("  POST /rebuildRAG - Rebuild RAG knowledge base")
+    print("  GET  /ragStatus - Check RAG system status")
+    print("  GET  /getImage/<id> - Proxy to image service")
+    
     app.run(port=5090, debug=True)
