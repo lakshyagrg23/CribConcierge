@@ -10,6 +10,12 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       // Proxy image upload requests to Node.js service
+      '/api/images/upload': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/images\/upload/, '/upload'),
+      },
+      // Proxy image retrieval requests to Node.js service
       '/api/images': {
         target: 'http://localhost:3000',
         changeOrigin: true,
