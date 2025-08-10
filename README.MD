@@ -80,5 +80,27 @@ From detailed property listings to **360° virtual tours** and an **AI-powered c
 
 ---
 
-## 📂 Project Structure
+## 🚀 Development Status
 
+✅ Completed:
+- Property management system
+- VR tour implementation with A-Frame
+- AI chat assistant with RAG
+- n8n pipeline for RAG orchestration
+- Image upload/storage
+- Dashboard and listings
+
+🔄 In Progress:
+- Voice assistant integration inside VR tours
+- Advanced voice navigation in 3D
+- Voice testing & optimization
+
+---
+
+## 💡 Value Propositions
+- **Immersive Experience:** 360° VR tours of properties.
+- **AI Intelligence:** Smart recommendations and conversational search.
+- **Voice Interaction:** Hands-free property exploration via Retell AI.
+- **Modern UX:** Responsive, clean interface with animations.
+
+---
