@@ -103,6 +103,23 @@ class PropertyDatabase:
         documents = []
         
         for prop in properties:
+            # Handle description as JSON or fallback to string
+            description_data = prop.get('description', 'N/A')
+            if isinstance(description_data, dict):
+                # Extract text content from JSON description
+                description_text = description_data.get('text', 'N/A')
+                description_summary = description_data.get('summary', '')
+                description_sections = description_data.get('sections', [])
+                
+                # Build enhanced description content
+                formatted_description = f"{description_text}"
+                if description_sections:
+                    formatted_description += "\n\nKey Sections:\n"
+                    formatted_description += "\n".join([f"- {section.get('content', '')}" for section in description_sections])
+            else:
+                # Fallback for string descriptions
+                formatted_description = str(description_data)
+            
             # Build comprehensive content for each property
             content = f"""
 Property Name: {prop.get('propertyName', 'N/A')}
@@ -111,7 +128,7 @@ Property Cost: ₹{prop.get('propertyCostRange', 'N/A')}
 Bedrooms: {prop.get('bedrooms', 'N/A')}
 Bathrooms: {prop.get('bathrooms', 'N/A')}
 Area: {prop.get('area', 'N/A')}
-Description: {prop.get('description', 'N/A')}
+Description: {formatted_description}
 Features: {', '.join(prop.get('features', []))}
 Status: {prop.get('status', 'N/A')}
 
@@ -195,6 +212,21 @@ Updated: {prop.get('updated_at', 'N/A')}
                 return self.build_rag_knowledge_base()
             
             # Convert single property to document
+            # Handle description as JSON or string
+            description_data = property_data.get('description', 'N/A')
+            if isinstance(description_data, dict):
+                # Extract text content from JSON description
+                formatted_description = description_data.get('text', 'N/A')
+                description_sections = description_data.get('sections', [])
+                
+                # Add section details if available
+                if description_sections:
+                    formatted_description += "\n\nKey Sections:\n"
+                    formatted_description += "\n".join([f"- {section.get('content', '')}" for section in description_sections])
+            else:
+                # Fallback for string descriptions
+                formatted_description = str(description_data)
+            
             content = f"""
 Property Name: {property_data.get('propertyName', 'N/A')}
 Property Address: {property_data.get('propertyAddress', 'N/A')}
@@ -202,7 +234,7 @@ Property Cost: ₹{property_data.get('propertyCostRange', 'N/A')}
 Bedrooms: {property_data.get('bedrooms', 'N/A')}
 Bathrooms: {property_data.get('bathrooms', 'N/A')}
 Area: {property_data.get('area', 'N/A')}
-Description: {property_data.get('description', 'N/A')}
+Description: {formatted_description}
 Features: {', '.join(property_data.get('features', []))}
 
 Available Images for VR Tour:
@@ -244,12 +276,32 @@ def add_listing():
     try:
         data = request.get_json()
         
+        # Handle description as JSON or string
+        description_data = data.get('description', '')
+        if isinstance(description_data, dict):
+            # If description is already JSON, store it as is
+            processed_description = description_data
+        else:
+            # If description is a string, convert it to structured JSON
+            processed_description = {
+                "text": description_data,
+                "summary": description_data[:100] + ("..." if len(description_data) > 100 else ""),
+                "wordCount": len(description_data.split()) if description_data else 0,
+                "createdAt": datetime.utcnow().isoformat(),
+                "lastModified": datetime.utcnow().isoformat(),
+                "sections": [
+                    {"id": idx + 1, "content": section.strip()}
+                    for idx, section in enumerate(description_data.split('\n'))
+                    if section.strip()
+                ] if description_data else []
+            }
+        
         # Create property document
         property_data = {
             'propertyName': data.get('propertyName', ''),
             'propertyAddress': data.get('propertyAddress', ''),
             'propertyCostRange': data.get('propertyCostRange', ''),
-            'description': data.get('description', ''),
+            'description': processed_description,  # Store as JSON object
             'roomPhotoId': data.get('roomPhotoId'),
             'bathroomPhotoId': data.get('bathroomPhotoId'),
             'drawingRoomPhotoId': data.get('drawingRoomPhotoId'),
@@ -298,6 +350,15 @@ def get_listings():
         # Transform data for frontend compatibility
         formatted_properties = []
         for prop in properties:
+            # Handle description JSON formatting
+            description_data = prop.get('description', '')
+            if isinstance(description_data, dict):
+                # For frontend display, use the text content
+                description_for_frontend = description_data.get('text', '')
+            else:
+                # Fallback for string descriptions
+                description_for_frontend = str(description_data)
+                
             formatted_prop = {
                 "id": prop['_id'],
                 "title": prop.get('propertyName', ''),
@@ -311,7 +372,8 @@ def get_listings():
                 "bathroomPhotoId": prop.get('bathroomPhotoId'),
                 "drawingRoomPhotoId": prop.get('drawingRoomPhotoId'),
                 "kitchenPhotoId": prop.get('kitchenPhotoId'),
-                "description": prop.get('description', ''),
+                "description": description_for_frontend,
+                "descriptionJson": prop.get('description'),  # Include full JSON for advanced features
                 "created_at": prop.get('created_at'),
                 "updated_at": prop.get('updated_at')
             }
@@ -338,6 +400,15 @@ def get_property(property_id):
         if not property_data:
             return jsonify({"error": "Property not found"}), 404
         
+        # Handle description JSON formatting
+        description_data = property_data.get('description', '')
+        if isinstance(description_data, dict):
+            # For frontend display, use the text content
+            description_for_frontend = description_data.get('text', '')
+        else:
+            # Fallback for string descriptions
+            description_for_frontend = str(description_data)
+        
         # Format for frontend
         formatted_property = {
             "id": property_data['_id'],
@@ -348,7 +419,8 @@ def get_property(property_id):
             "bathroomPhotoId": property_data.get('bathroomPhotoId'),
             "drawingRoomPhotoId": property_data.get('drawingRoomPhotoId'),
             "kitchenPhotoId": property_data.get('kitchenPhotoId'),
-            "description": property_data.get('description', ''),
+            "description": description_for_frontend,
+            "descriptionJson": property_data.get('description'),  # Include full JSON structure
             "bedrooms": property_data.get('bedrooms', 2),
             "bathrooms": property_data.get('bathrooms', 1),
             "area": property_data.get('area', ''),

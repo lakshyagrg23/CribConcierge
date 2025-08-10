@@ -3,6 +3,8 @@ import 'aframe';
 import { TourProperty, TourRoom, TourState } from '@/types/tour';
 import TourNavigationControls from './TourNavigationControls';
 import SceneTransition from './SceneTransition';
+import { VoiceAssistant } from '../voice/VoiceAssistantClean';
+import { VoiceCommand } from '@/types/voice';
 
 interface VirtualTourViewerProps {
   property: TourProperty;
@@ -132,6 +134,48 @@ const VirtualTourViewer: React.FC<VirtualTourViewerProps> = ({ property }) => {
     }
   }, [rooms, getImageUrl]);
 
+  // Voice command handler
+  const handleVoiceCommand = useCallback((command: VoiceCommand) => {
+    console.log('Voice command received:', command);
+    
+    switch (command.action) {
+      case 'navigate':
+        if (command.target) {
+          // Map voice command targets to room IDs
+          const roomMapping: Record<string, string> = {
+            'kitchen': 'kitchen',
+            'bedroom': 'bedroom',
+            'bathroom': 'bathroom',
+            'living_room': 'living-room',
+            'living room': 'living-room'
+          };
+          
+          const roomId = roomMapping[command.target];
+          if (roomId) {
+            handleRoomSwitch(roomId);
+          }
+        }
+        break;
+        
+      case 'describe':
+        // Voice assistant will handle the description response
+        console.log(`Describing current room: ${currentRoom}`);
+        break;
+        
+      case 'exit':
+        // Navigate back to dashboard
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = '/dashboard';
+        }
+        break;
+        
+      default:
+        console.log('Unhandled voice command:', command);
+    }
+  }, [currentRoom, handleRoomSwitch]);
+
   // Initialize the scene with the first available room
   useEffect(() => {
     const initializeScene = () => {
@@ -219,11 +263,22 @@ const VirtualTourViewer: React.FC<VirtualTourViewerProps> = ({ property }) => {
         </p>
       </div>
 
+      {/* Voice Assistant */}
+      <div className="absolute top-4 right-4 max-w-sm">
+        <VoiceAssistant
+          onCommand={handleVoiceCommand}
+          currentRoom={currentRoom}
+          propertyId={property.id}
+          isInTour={true}
+        />
+      </div>
+
       {/* Instructions Overlay */}
       <div className="absolute bottom-4 left-4 bg-black/70 text-white p-3 rounded-lg backdrop-blur-sm text-sm">
         <p>🖱️ Click and drag to look around</p>
         <p>⌨️ Use WASD keys to move</p>
         <p>👆 Click buttons to switch rooms</p>
+        <p>🎤 Use voice commands: "go to kitchen", "describe this room"</p>
       </div>
 
       {/* Debug Info */}

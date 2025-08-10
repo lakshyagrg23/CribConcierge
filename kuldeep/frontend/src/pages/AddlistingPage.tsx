@@ -31,6 +31,19 @@ const AddListingPage = () => {
         // kitchenPhotoId &&
         // document
         ) {
+            // Convert description to structured JSON format
+            const descriptionJson = {
+                text: description,
+                summary: description.slice(0, 100) + (description.length > 100 ? "..." : ""),
+                wordCount: description.split(' ').length,
+                createdAt: new Date().toISOString(),
+                lastModified: new Date().toISOString(),
+                sections: description.split('\n').filter(line => line.trim() !== '').map((section, index) => ({
+                    id: index + 1,
+                    content: section.trim()
+                }))
+            };
+
             axios.post("http://localhost:5090/addListing",{
                  headers: {
           "Content-Type": "application/json",
@@ -42,7 +55,7 @@ const AddListingPage = () => {
                 bathroomPhotoId:bathroomPhotoId,
                 drawingRoomPhotoId:drawingRoomPhotoId,
                 kitchenPhotoId:kitchenPhotoId,
-                description:description,
+                description:descriptionJson,
                 // document:document
             }).then(res => {
                 console.log(res)
