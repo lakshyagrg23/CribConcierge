@@ -1,0 +1,224 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CribConcierge Design System - Luxury Real Estate Aesthetic
+All colors MUST be HSL. Inspired by premium materials and architecture. */
+
+@layer base {
+  :root {
+    /* Core palette - luxury real estate inspired */
+    --background: 45 12% 98%;
+    --foreground: 20 14% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 12%;
+
+    /* Primary - rich copper/bronze tones */
+    --primary: 25 45% 35%;
+    --primary-glow: 28 55% 45%;
+    --primary-foreground: 45 12% 98%;
+
+    /* Secondary - warm stone */
+    --secondary: 35 15% 92%;
+    --secondary-foreground: 20 14% 12%;
+
+    /* Accent - gold accents for luxury */
+    --accent: 45 85% 55%;
+    --accent-glow: 48 95% 65%;
+    --accent-foreground: 20 14% 12%;
+
+    /* Neutral system - architectural grays */
+    --muted: 30 8% 95%;
+    --muted-foreground: 20 8% 45%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 12% 88%;
+    --input: 35 10% 94%;
+    --ring: 25 45% 35%;
+
+    --radius: 0.5rem;
+
+    /* Design system extensions - architectural materials */
+    --surface: 42 15% 96%;
+    --surface-secondary: 38 12% 94%;
+    --brick: 15 25% 45%;
+    --brick-light: 18 35% 65%;
+    --stone: 35 8% 75%;
+    --stone-dark: 30 12% 55%;
+    --marble: 60 5% 96%;
+    --concrete: 210 5% 85%;
+    
+    /* Luxury gradients - inspired by architectural materials */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-glow)));
+    --gradient-surface: linear-gradient(180deg, hsl(var(--background)), hsl(var(--surface)));
+    --gradient-brick: linear-gradient(45deg, hsl(var(--brick)), hsl(var(--brick-light)));
+    --gradient-stone: linear-gradient(180deg, hsl(var(--stone)), hsl(var(--stone-dark)));
+    --gradient-marble: linear-gradient(135deg, hsl(var(--marble)), hsl(var(--surface)));
+    --gradient-luxury: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary-glow)) 100%);
+    
+    /* Architectural shadows - deeper, more sophisticated */
+    --shadow-sm: 0 2px 8px -2px hsl(var(--stone-dark) / 0.15);
+    --shadow-md: 0 4px 20px -4px hsl(var(--stone-dark) / 0.2);
+    --shadow-lg: 0 8px 32px -8px hsl(var(--stone-dark) / 0.25);
+    --shadow-xl: 0 16px 48px -12px hsl(var(--stone-dark) / 0.3);
+    --shadow-brick: 0 4px 16px -4px hsl(var(--brick) / 0.3);
+    --shadow-luxury: 0 8px 40px -8px hsl(var(--accent) / 0.2);
+    
+    /* Premium animations */
+    --transition-smooth: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-spring: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --transition-luxury: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* Real Estate Brick Pattern Utilities */
+@layer components {
+  .brick-pattern {
+    background-image: 
+      linear-gradient(90deg, hsl(var(--brick-light)) 0px, transparent 1px),
+      linear-gradient(180deg, hsl(var(--brick-light)) 0px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--brick)) 0px, transparent 1px),
+      linear-gradient(180deg, hsl(var(--brick)) 0px, transparent 1px);
+    background-size: 120px 60px, 120px 60px, 60px 30px, 60px 30px;
+    background-position: 0 0, 0 0, 60px 30px, 60px 30px;
+    opacity: 0.1;
+  }
+  
+  .brick-texture {
+    background: 
+      repeating-linear-gradient(
+        0deg,
+        hsl(var(--brick)) 0px,
+        hsl(var(--brick)) 2px,
+        hsl(var(--brick-light)) 2px,
+        hsl(var(--brick-light)) 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        hsl(var(--brick-light)) 0px,
+        hsl(var(--brick-light)) 80px,
+        hsl(var(--brick)) 80px,
+        hsl(var(--brick)) 82px
+      );
+    opacity: 0.15;
+  }
+  
+  .stone-texture {
+    background: 
+      radial-gradient(circle at 20% 30%, hsl(var(--stone)) 1px, transparent 1px),
+      radial-gradient(circle at 80% 70%, hsl(var(--stone-dark)) 1px, transparent 1px),
+      linear-gradient(45deg, hsl(var(--surface)) 25%, transparent 25%),
+      linear-gradient(-45deg, hsl(var(--surface-secondary)) 25%, transparent 25%);
+    background-size: 40px 40px, 60px 60px, 20px 20px, 20px 20px;
+    opacity: 0.08;
+  }
+  
+  .marble-texture {
+    background: 
+      linear-gradient(135deg, transparent 40%, hsl(var(--stone)) 40%, hsl(var(--stone)) 60%, transparent 60%),
+      linear-gradient(45deg, transparent 30%, hsl(var(--stone-dark)) 30%, hsl(var(--stone-dark)) 70%, transparent 70%);
+    background-size: 80px 80px, 120px 120px;
+    opacity: 0.05;
+  }
+  
+  .luxury-card {
+    @apply bg-card border border-border rounded-lg shadow-elegant-md hover:shadow-elegant-lg;
+    @apply transition-all duration-500 hover:scale-[1.02];
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--surface)) 100%);
+    position: relative;
+  }
+  
+  .luxury-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    @apply stone-texture rounded-lg;
+    pointer-events: none;
+  }
+  
+  .architectural-border {
+    border: 2px solid hsl(var(--border));
+    border-image: linear-gradient(45deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary))) 1;
+  }
+  
+  .premium-gradient {
+    background: var(--gradient-luxury);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
