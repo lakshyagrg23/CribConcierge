@@ -104,3 +104,42 @@ From detailed property listings to **360° virtual tours** and an **AI-powered c
 - **Modern UX:** Responsive, clean interface with animations.
 
 ---
+
+## 🛠 Installation & Setup
+
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/yourusername/CribConcierge.git
+cd CribConcierge
+```
+
+### 2️⃣ Backend Setup (Flask)
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
+
+### 3️⃣ Frontend Setup (React + Vite)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4️⃣ Environment Variables
+```bash
+# Backend
+MONGO_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
+N8N_WEBHOOK_URL=your_n8n_webhook
+
+# Frontend
+VITE_BACKEND_URL=http://localhost:5000
+RETELL_API_KEY=your_retell_api_key
+```
+
+---
+
+## 📜 License
+This project is licensed under the MIT License.
