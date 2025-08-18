@@ -1,0 +1,1 @@
+export { useTourProperties } from './useTourProperties';
